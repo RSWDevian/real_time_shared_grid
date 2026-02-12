@@ -1,6 +1,6 @@
 export type CellOwner = {
-    userId: String;
-    color: String;
+    userId: string;
+    email: string;
 };
 
 export type CellState = CellOwner | null

@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String      @id @default(uuid()) @db.Uuid
+  username     String?     @unique
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime?   @map("updated_at") @db.Timestamptz(6)
+  ownerships   Ownership[]
+
+  @@map("users")
+}
+
+model Ownership {
+  blockId   String   @id @map("block_id")
+  owner     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [owner], references: [email])
+
+  @@map("ownership")
+}

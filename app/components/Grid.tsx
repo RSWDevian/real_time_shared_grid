@@ -1,44 +1,63 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useTheme } from "next-themes"
-import { themes, gridConfig } from "../lib/themes"
-import { TOTAL_CELLS } from "./grid.constants"
-import { CellState } from "../lib/types"
-import { Cell } from "./Cell"
-import { useMounted } from "../lib/useMounted"
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
+import { themes, gridConfig } from "../lib/themes";
+import { CellState } from "../lib/types";
+import { Cell } from "./Cell";
+import { useMounted } from "../lib/useMounted";
 
 const MOCK_USER = {
-    id: "user_1",
-    color: "#6366f1", // indigo-500
+  id: "user_1",
+  color: "#6366f1",
 };
 
 export default function Grid() {
-    const mounted = useMounted()
-    const { theme } = useTheme()
-    
-    const currentTheme = theme === "dark" ? themes.dark : themes.light
-    const [cells, setCells] = useState<CellState[]>(
-        Array(TOTAL_CELLS).fill(null)
-    )
+  const mounted = useMounted();
+  const { theme } = useTheme();
 
-    if (!mounted) return null
+  const currentTheme = theme === "dark" ? themes.dark : themes.light;
 
-    function handleCellClick(index: number) {
-        setCells((prev) => {
-            if (prev[index]) return prev; // already owned
+  const [cols, setCols] = useState(gridConfig.cols);
+  const [cells, setCells] = useState<CellState[]>(
+    Array(gridConfig.rows * gridConfig.cols).fill(null)
+  );
 
-            const next = [...prev];
-            next[index] = {
-                userId: MOCK_USER.id,
-                color: MOCK_USER.color,
-            };
+  useEffect(() => {
+    function updateCols() {
+      const padding = 32; // matches outer padding (p-4)
+      const cellWithGap = gridConfig.cellSize + gridConfig.gap;
+      const maxCols = Math.max(
+        1,
+        Math.floor((window.innerWidth - padding) / cellWithGap)
+      );
 
-            return next;
-        });
+      setCols(maxCols);
+      setCells(Array(gridConfig.rows * maxCols).fill(null));
     }
 
-     return (
+    updateCols();
+    window.addEventListener("resize", updateCols);
+    return () => window.removeEventListener("resize", updateCols);
+  }, []);
+
+  if (!mounted) return null;
+
+  function handleCellClick(index: number) {
+    setCells((prev) => {
+      if (prev[index]) return prev;
+
+      const next = [...prev];
+      next[index] = {
+        userId: MOCK_USER.id,
+        color: MOCK_USER.color,
+      };
+
+      return next;
+    });
+  }
+
+  return (
     <div
       className="p-4 rounded-xl shadow-xl transition-colors"
       style={{ background: currentTheme.gridBackground }}
@@ -46,7 +65,7 @@ export default function Grid() {
       <div
         className="grid"
         style={{
-          gridTemplateColumns: `repeat(${gridConfig.cols}, ${gridConfig.cellSize}px)`,
+          gridTemplateColumns: `repeat(${cols}, ${gridConfig.cellSize}px)`,
           gap: gridConfig.gap,
         }}
       >
