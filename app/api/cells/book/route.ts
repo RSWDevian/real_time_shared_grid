@@ -22,20 +22,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing blockId" }, { status: 400 });
     }
 
-    // If already owned, do nothing
     const existing = await prisma.ownership.findUnique({
       where: { blockId },
     });
 
-    if (existing) {
-      return NextResponse.json({ error: "Already owned" }, { status: 409 });
+    if (!existing) {
+      return NextResponse.json({ error: "Not owned" }, { status: 404 });
     }
 
-    await prisma.ownership.create({
-      data: {
-        blockId,
-        owner: decoded.email,
-      },
+    if (existing.owner !== decoded.email) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await prisma.ownership.delete({
+      where: { blockId },
     });
 
     return NextResponse.json({ ok: true });

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { themes, gridConfig } from "../lib/themes";
@@ -7,10 +5,17 @@ import { CellState } from "../lib/types";
 import { Cell } from "./Cell";
 import { useMounted } from "../lib/useMounted";
 
-const MOCK_USER = {
-  id: "user_1",
-  color: "#6366f1",
-};
+// 
+type User = {
+  id: string;
+  email: string;
+} | null;
+
+function toBlockId(index: number, cols: number) {
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  return `${row}-${col}`;
+}
 
 export default function Grid() {
   const mounted = useMounted();
@@ -22,10 +27,18 @@ export default function Grid() {
   const [cells, setCells] = useState<CellState[]>(
     Array(gridConfig.rows * gridConfig.cols).fill(null)
   );
+  const [user, setUser] = useState<User>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null));
+  }, []);
 
   useEffect(() => {
     function updateCols() {
-      const padding = 32; // matches outer padding (p-4)
+      const padding = 32;
       const cellWithGap = gridConfig.cellSize + gridConfig.gap;
       const maxCols = Math.max(
         1,
@@ -43,16 +56,47 @@ export default function Grid() {
 
   if (!mounted) return null;
 
-  function handleCellClick(index: number) {
+  async function handleBook(index: number) {
+    if (!user) {
+      alert("Please login to book a cell.");
+      return;
+    }
+
+    if (cells[index]) return;
+
+    const blockId = toBlockId(index, cols);
+
+    const res = await fetch("/api/cells/book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockId }),
+    });
+
+    if (!res.ok) return;
+
     setCells((prev) => {
-      if (prev[index]) return prev;
-
       const next = [...prev];
-      next[index] = {
-        userId: MOCK_USER.id,
-        color: MOCK_USER.color,
-      };
+      next[index] = { userId: user.id, email: user.email };
+      return next;
+    });
+  }
 
+  async function handleSell(index: number) {
+    if (!user) return;
+
+    const blockId = toBlockId(index, cols);
+
+    const res = await fetch("/api/auth/cells/sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockId }),
+    });
+
+    if (!res.ok) return;
+
+    setCells((prev) => {
+      const next = [...prev];
+      next[index] = null;
       return next;
     });
   }
@@ -73,7 +117,9 @@ export default function Grid() {
           <Cell
             key={index}
             owner={owner}
-            onClick={() => handleCellClick(index)}
+            currentUserEmail={user?.email ?? ""}
+            onBook={() => handleBook(index)}
+            onSell={() => handleSell(index)}
           />
         ))}
       </div>

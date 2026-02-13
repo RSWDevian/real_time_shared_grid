@@ -1,3 +1,4 @@
+//* The Navbar commponent of the app which the handles the user authentication
 "use client";
 
 import Link from "next/link";
@@ -7,17 +8,24 @@ import Modal from "./Modal";
 type User = { id: string; email: string } | null;
 
 export default function Navbar() {
+
+  // State for managing authentication modals and user info
   const [open, setOpen] = useState<"login" | "signup" | null>(null);
+  // State for error messages and loading status during authentication
   const [error, setError] = useState("");
+  // State for storing the currently logged-in user
   const [loading, setLoading] = useState(false);
+  // Fetch the current user on component mount to determine if the user is logged in
   const [user, setUser] = useState<User>(null);
 
+  //? Effect to fetch the current user information when the component mounts
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => setUser(data.user));
   }, []);
 
+  //? Function to handle the signup process
   async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -26,19 +34,21 @@ export default function Navbar() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
+    // POST request to the signup API endpoint with the form data
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: data.get("username"),
-          email: data.get("email"),
-          password: data.get("password"),
+          username: data.get("username"), // username
+          email: data.get("email"), // email which ht e primary key
+          password: data.get("password"), // password for authentication
         }),
       });
 
       const json = await res.json();
 
+      // Error handling
       if (!res.ok) {
         setError(json.error || "Signup failed");
         setLoading(false);
@@ -53,6 +63,7 @@ export default function Navbar() {
     }
   }
 
+  //? Function to handle the login process
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -61,6 +72,7 @@ export default function Navbar() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
+    // POST request to the login API endpoint with the form data
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -73,6 +85,7 @@ export default function Navbar() {
 
       const json = await res.json();
 
+      // Handling the error during login
       if (!res.ok) {
         setError(json.error || "Login failed");
         setLoading(false);
@@ -87,6 +100,7 @@ export default function Navbar() {
     }
   }
 
+  //? Function to handle user logout
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.reload();
@@ -132,7 +146,7 @@ export default function Navbar() {
           </nav>
         </header>
       </div>
-
+      {/* The login element */}
       {open === "login" && (
         <Modal title="Login" onClose={() => { setOpen(null); setError(""); }}>
           <form className="flex flex-col gap-3" onSubmit={handleLogin}>
@@ -161,7 +175,7 @@ export default function Navbar() {
           </form>
         </Modal>
       )}
-
+      {/* The signup element */}
       {open === "signup" && (
         <Modal title="Sign Up" onClose={() => { setOpen(null); setError(""); }}>
           <form className="flex flex-col gap-3" onSubmit={handleSignup}>

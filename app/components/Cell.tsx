@@ -1,5 +1,3 @@
-"use client";
-
 import { useTheme } from "next-themes";
 import { themes, gridConfig } from "../lib/themes";
 import { useState } from "react";

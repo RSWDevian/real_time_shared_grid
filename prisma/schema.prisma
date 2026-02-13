@@ -1,13 +1,16 @@
+//* This is the Prisma Schema file for the generating the database structure at Supabase
 generator client {
   provider = "prisma-client-js"
 }
 
+//? The db source file location
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
+//? The User model representing the users of the application
 model User {
   id           String      @id @default(uuid()) @db.Uuid
   username     String?     @unique
@@ -20,6 +23,7 @@ model User {
   @@map("users")
 }
 
+//? The Ownership modedl representing the models of the ownership data
 model Ownership {
   blockId   String   @id @map("block_id")
   owner     String
