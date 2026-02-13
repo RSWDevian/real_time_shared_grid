@@ -19,8 +19,8 @@ export const themes = {
 export const gridConfig = {
   rows: 10,
   cols: 10,
-  cellSize: 20,
-  gap: 2,
+  cellSize: 30,
+  gap: 40,
 };
 
 export const animation = {

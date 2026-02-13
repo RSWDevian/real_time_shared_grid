@@ -1,20 +1,32 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { themes, gridConfig } from "../lib/themes";
+import { themes } from "../lib/themes";
 import { CellState } from "../lib/types";
 import { Cell } from "./Cell";
 import { useMounted } from "../lib/useMounted";
+import { ROWS, COLS } from "./grid.constants";
+import io, { Socket } from "socket.io-client";
 
-// 
 type User = {
   id: string;
   email: string;
 } | null;
 
-function toBlockId(index: number, cols: number) {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
+type GridBlock = {
+  blockId: string;
+  occupied: boolean;
+  owner: string | null;
+};
+
+let socket: Socket;
+
+function toBlockId(row: number, col: number) {
   return `${row}-${col}`;
+}
+
+function fromBlockId(blockId: string) {
+  const [row, col] = blockId.split("-").map(Number);
+  return { row, col };
 }
 
 export default function Grid() {
@@ -23,12 +35,10 @@ export default function Grid() {
 
   const currentTheme = theme === "dark" ? themes.dark : themes.light;
 
-  const [cols, setCols] = useState(gridConfig.cols);
-  const [cells, setCells] = useState<CellState[]>(
-    Array(gridConfig.rows * gridConfig.cols).fill(null)
-  );
+  const [cellStates, setCellStates] = useState<Record<string, CellState>>({});
   const [user, setUser] = useState<User>(null);
 
+  // Fetch current user
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => res.json())
@@ -36,69 +46,80 @@ export default function Grid() {
       .catch(() => setUser(null));
   }, []);
 
+  // Setup WebSocket connection
   useEffect(() => {
-    function updateCols() {
-      const padding = 32;
-      const cellWithGap = gridConfig.cellSize + gridConfig.gap;
-      const maxCols = Math.max(
-        1,
-        Math.floor((window.innerWidth - padding) / cellWithGap)
-      );
+    socket = io();
 
-      setCols(maxCols);
-      setCells(Array(gridConfig.rows * maxCols).fill(null));
-    }
+    // Request initial grid state
+    socket.emit("request-grid");
 
-    updateCols();
-    window.addEventListener("resize", updateCols);
-    return () => window.removeEventListener("resize", updateCols);
+    // Listen for initial grid state
+    socket.on("grid-state", (blocks: GridBlock[]) => {
+      const stateMap: Record<string, CellState> = {};
+      blocks.forEach((block) => {
+        stateMap[block.blockId] = block.occupied && block.owner
+          ? { userId: "", email: block.owner }
+          : null;
+      });
+      setCellStates(stateMap);
+    });
+
+    // Listen for real-time block updates
+    socket.on("block-updated", (block: GridBlock) => {
+      setCellStates((prev) => ({
+        ...prev,
+        [block.blockId]: block.occupied && block.owner
+          ? { userId: "", email: block.owner }
+          : null,
+      }));
+    });
+
+    // Listen for errors
+    socket.on("error", (error: { message: string }) => {
+      alert(error.message);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   if (!mounted) return null;
 
-  async function handleBook(index: number) {
+  async function handleBook(row: number, col: number) {
     if (!user) {
       alert("Please login to book a cell.");
       return;
     }
 
-    if (cells[index]) return;
-
-    const blockId = toBlockId(index, cols);
-
-    const res = await fetch("/api/cells/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blockId }),
-    });
-
-    if (!res.ok) return;
-
-    setCells((prev) => {
-      const next = [...prev];
-      next[index] = { userId: user.id, email: user.email };
-      return next;
-    });
+    const blockId = toBlockId(row, col);
+    socket.emit("book-block", { blockId, userEmail: user.email });
   }
 
-  async function handleSell(index: number) {
+  async function handleSell(row: number, col: number) {
     if (!user) return;
 
-    const blockId = toBlockId(index, cols);
+    const blockId = toBlockId(row, col);
+    socket.emit("sell-block", { blockId, userEmail: user.email });
+  }
 
-    const res = await fetch("/api/auth/cells/sell", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blockId }),
-    });
-
-    if (!res.ok) return;
-
-    setCells((prev) => {
-      const next = [...prev];
-      next[index] = null;
-      return next;
-    });
+  // Generate grid cells
+  const cells = [];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const blockId = toBlockId(row, col);
+      const cellState = cellStates[blockId] || null;
+      
+      cells.push(
+        <Cell
+          key={blockId}
+          owner={cellState}
+          currentUserEmail={user?.email ?? ""}
+          onBook={() => handleBook(row, col)}
+          onSell={() => handleSell(row, col)}
+        />
+      );
+    }
   }
 
   return (
@@ -109,19 +130,11 @@ export default function Grid() {
       <div
         className="grid"
         style={{
-          gridTemplateColumns: `repeat(${cols}, ${gridConfig.cellSize}px)`,
-          gap: gridConfig.gap,
+          gridTemplateColumns: `repeat(${COLS}, 30px)`,
+          gap: 2,
         }}
       >
-        {cells.map((owner, index) => (
-          <Cell
-            key={index}
-            owner={owner}
-            currentUserEmail={user?.email ?? ""}
-            onBook={() => handleBook(index)}
-            onSell={() => handleSell(index)}
-          />
-        ))}
+        {cells}
       </div>
     </div>
   );
