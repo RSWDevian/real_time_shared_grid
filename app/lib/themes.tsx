@@ -17,9 +17,9 @@ export const themes = {
 };
 
 export const gridConfig = {
-  rows: 100,
-  cols: 100,
-  cellSize: 28,
+  rows: 10,
+  cols: 10,
+  cellSize: 20,
   gap: 2,
 };
 
