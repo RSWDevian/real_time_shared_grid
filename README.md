@@ -1,36 +1,125 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Real-Time Shared Grid
 
-## Getting Started
+A collaborative real-time grid application where users can book and sell grid blocks with live updates, activity tracking, and theme support/
 
-First, run the development server:
+### Features
+- __Real-time Collaboration:__ WebSocket-based grid updates using Socket.IO
+- __Block Booking & Selling:__ Book empty cells or sell your owned cells
+- __Live Activity Board:__ Right-sidebar showing real-time book/sell events
+- __User Authentication:__ Login, Signup, and logout via API
+- __Color-Coded Cells:__ 
+    - Empty(Black)
+    - Booked by others(Grey)
+    - Booked by user(Green)
+- __Dark/Light Theme Support:__ Theme switching with next-themes
+- __Microservice Architecture:__ Seperate Socket.IO service for scalability
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Tech Stack
+#### Frontend:
+- __Next.js:__ React framework
+- __TypeScript:__ Type Safety
+- __Socket.IO Client:__ Real-time Communication
+- __Next-Themes:__ Dark/Light mode
+- __TailwindCSS:__ Styling
+
+#### Backend:
+- __Node.js + Express:__ HTTP server (microservice)
+- __Socket.IO:__ WebSocket Server
+- __Prisma ORM:__ Database Client
+- __PostgreSQL:__ Database
+- __TypeScript:__ Type Safety
+
+### Project Structure
+```
+real_time_shared_grid/           # Next.js frontend app
+├── app/
+│   ├── api/                      # API routes (auth, cells)
+│   ├── components/               # React components
+│   │   ├── Grid.tsx             # Main grid + socket setup
+│   │   ├── Cell.tsx             # Individual cell
+│   │   ├── ActivityBoard.tsx    # Activity log sidebar
+│   │   └── ...
+│   ├── lib/
+│   │   ├── types.tsx            # TypeScript types
+│   │   ├── themes.tsx           # Theme definitions
+│   │   ├── socketServer.ts      # Socket initialization (legacy)
+│   │   └── db.ts                # Prisma client
+│   └── globals.css
+├── prisma/
+│   └── schema.prisma            # Database schema
+└── package.json
+
+socket-service/                   # Separate microservice
+├── src/
+│   └── index.ts                 # Express + Socket.IO server
+├── prisma/
+│   └── schema.prisma            # Shared schema
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### API Routes
+Authentication
+- `POST /api/auth/signup` - Register user
+- `POST /api/auth/login` - Login and get session
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Cells:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GET /api/cells/book` - Book a cell(legacy, but done via Socket.IO now)
+- `GET /api/cells/sell` - Sell a cell(legacy, but done via Socket.IO now)
 
-## Learn More
+### Socket.IO Events
+Client -> Server
+- `request-grid` - Fetch initial grid state
+- `book-block` - Book a block
+- `sell-block` - Sell a block
 
-To learn more about Next.js, take a look at the following resources:
+Server -> Client
+- `grid-state` - Initial grid blocks
+- `block-updated` - Block state changed
+- `activity` - Book/Sell event
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Database Schema
+Users:
+```
+model User {
+  id            String
+  email         String (unique)
+  username      String?
+  passwordHash  String
+  ownerships    Ownership[]
+  gridBlocks    GridBlock[]
+}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+GridBlocks:
+```
+model GridBlock {
+  blockId   String (primary key like "0-0")
+  occupied  Boolean
+  owner     String? (references User.email)
+  createdAt DateTime
+  updatedAt DateTime
+}
+```
 
-## Deploy on Vercel
+Ownership:
+```
+model Ownership {
+  blockId   String (primary key)
+  owner     String (User.email)
+  boughtAt  DateTime
+  soldAt    DateTime?
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Known Limitations & Future Improvements
+-User validation: Currently checks user exists before booking
+-No persistence of user sessions (in-memory)
+-Activity board limited to last 20 events
+-Grid fixed at 10x10 cells
+-No block listing or marketplace features
+-No price/monetization system
+### License
+MIT
