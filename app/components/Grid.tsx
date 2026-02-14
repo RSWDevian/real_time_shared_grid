@@ -51,7 +51,7 @@ export default function Grid() {
 
   // Setup WebSocket connection
   useEffect(() => {
-    const socketUrl = process.env.NEXXT_PUBLIC_SOCKET_URL || "http://localhost:4001";
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     socket = io(socketUrl);
 
     // Request initial grid state
