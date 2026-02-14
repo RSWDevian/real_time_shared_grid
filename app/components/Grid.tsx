@@ -6,6 +6,8 @@ import { Cell } from "./Cell";
 import { useMounted } from "../lib/useMounted";
 import { ROWS, COLS } from "./grid.constants";
 import io, { Socket } from "socket.io-client";
+import { ActivityBoard } from "./ActivityBoard";
+import { ActivityEvent } from "../lib/types";
 
 type User = {
   id: string;
@@ -37,6 +39,7 @@ export default function Grid() {
 
   const [cellStates, setCellStates] = useState<Record<string, CellState>>({});
   const [user, setUser] = useState<User>(null);
+  const [activities, setActivities] = useState<ActivityEvent[]>([]);
 
   // Fetch current user
   useEffect(() => {
@@ -48,10 +51,16 @@ export default function Grid() {
 
   // Setup WebSocket connection
   useEffect(() => {
-    socket = io();
+    const socketUrl = process.env.NEXXT_PUBLIC_SOCKET_URL || "http://localhost:4001";
+    socket = io(socketUrl);
 
     // Request initial grid state
     socket.emit("request-grid");
+
+    // In the socket connection useEffect, add listeners:
+    socket.on("activity", (event: ActivityEvent) => {
+      setActivities((prev) => [event, ...prev.slice(0, 19)]);
+    });
 
     // Listen for initial grid state
     socket.on("grid-state", (blocks: GridBlock[]) => {
@@ -92,12 +101,22 @@ export default function Grid() {
       return;
     }
 
+    if (!socket || !socket.connected) {
+      alert("Connection lost. Please refresh.");
+      return;
+    }
+
     const blockId = toBlockId(row, col);
     socket.emit("book-block", { blockId, userEmail: user.email });
   }
 
   async function handleSell(row: number, col: number) {
     if (!user) return;
+
+    if (!socket || !socket.connected) {
+      alert("Connection lost. Please refresh.");
+      return;
+    }
 
     const blockId = toBlockId(row, col);
     socket.emit("sell-block", { blockId, userEmail: user.email });
@@ -109,7 +128,7 @@ export default function Grid() {
     for (let col = 0; col < COLS; col++) {
       const blockId = toBlockId(row, col);
       const cellState = cellStates[blockId] || null;
-      
+
       cells.push(
         <Cell
           key={blockId}
@@ -127,6 +146,7 @@ export default function Grid() {
       className="p-4 rounded-xl shadow-xl transition-colors"
       style={{ background: currentTheme.gridBackground }}
     >
+      <ActivityBoard events={activities} />
       <div
         className="grid"
         style={{

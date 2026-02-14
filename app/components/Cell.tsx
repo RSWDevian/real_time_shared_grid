@@ -25,6 +25,12 @@ export function Cell({ owner, currentUserEmail, onBook, onSell }: CellProps) {
 
   const showTooltip = hovered || pinned;
 
+  const cellBase = isMine
+    ? currentTheme.cellMine
+    : isOwned
+    ? currentTheme.cellOwned
+    : currentTheme.cellEmpty;
+
   return (
     <div
       onClick={() => setPinned((p) => !p)}
@@ -34,7 +40,7 @@ export function Cell({ owner, currentUserEmail, onBook, onSell }: CellProps) {
       style={{
         width: gridConfig.cellSize,
         height: gridConfig.cellSize,
-        background: hovered ? currentTheme.hover : currentTheme.cellEmpty,
+        background: hovered ? currentTheme.hover : cellBase,
         border: `1px solid ${currentTheme.cellBorder}`,
       }}
     >
